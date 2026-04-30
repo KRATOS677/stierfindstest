@@ -7,10 +7,20 @@ import { ItemCard, Item } from "@/components/app/ItemCard";
 import { ReportItemDialog } from "@/components/app/ReportItemDialog";
 import { toast } from "sonner";
 
-const CATEGORIES = ["Electronics", "Bags", "Clothing", "Books", "Wallet/ID", "Keys", "Jewelry", "Other"];
+const CATEGORIES = [
+  "Electronics",
+  "Bags",
+  "Clothing",
+  "Books",
+  "Wallet/ID",
+  "Keys",
+  "Jewelry",
+  "Other",
+];
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
+  const isAdmin = role === "admin";
   const [items, setItems] = useState<Item[]>([]);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
   const [myName, setMyName] = useState("");
@@ -22,21 +32,42 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
-    const [{ data: itemsData }, { data: profileData }, { data: me }] = await Promise.all([
-      supabase.from("items").select("*").order("created_at", { ascending: false }),
-      supabase.from("profiles").select("id, name"),
-      user ? supabase.from("profiles").select("avatar_path").eq("id", user.id).maybeSingle() : Promise.resolve({ data: null } as any),
-    ]);
+    const [{ data: itemsData }, { data: profileData }, { data: me }] =
+      await Promise.all([
+        supabase
+          .from("items")
+          .select("*")
+          .order("created_at", { ascending: false }),
+        supabase.from("profiles").select("id, name"),
+        user
+          ? supabase
+              .from("profiles")
+              .select("avatar_path")
+              .eq("id", user.id)
+              .maybeSingle()
+          : Promise.resolve({ data: null } as any),
+      ]);
     const map: Record<string, string> = {};
-    (profileData || []).forEach((p: any) => { map[p.id] = p.name; });
+    (profileData || []).forEach((p: any) => {
+      map[p.id] = p.name;
+    });
     setProfiles(map);
-    setItems(((itemsData as Item[]) || []).map((i) => ({
-      ...i,
-      uploader_name: i.user_id ? map[i.user_id] || i.uploaded_by_name || "Student" : i.uploaded_by_name || "Admin",
-    })));
+    setItems(
+      ((itemsData as Item[]) || [])
+        .filter((i: any) => !i.archived_at) // hide archived from main feed
+        .map((i) => ({
+          ...i,
+          uploader_name: i.user_id
+            ? map[i.user_id] || i.uploaded_by_name || "Student"
+            : i.uploaded_by_name || "Admin",
+        })),
+    );
     if (user && map[user.id]) setMyName(map[user.id]);
     if (me && (me as any).avatar_path) {
-      setAvatarUrl(supabase.storage.from("avatars").getPublicUrl((me as any).avatar_path).data.publicUrl);
+      setAvatarUrl(
+        supabase.storage.from("avatars").getPublicUrl((me as any).avatar_path)
+          .data.publicUrl,
+      );
     } else {
       setAvatarUrl(null);
     }
@@ -47,9 +78,15 @@ export default function Dashboard() {
     load();
     const ch = supabase
       .channel("items-feed")
-      .on("postgres_changes", { event: "*", schema: "public", table: "items" }, () => load())
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "items" },
+        () => load(),
+      )
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    return () => {
+      supabase.removeChannel(ch);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
@@ -57,7 +94,8 @@ export default function Dashboard() {
     return items.filter((i) => {
       if (tab === "mine" && i.user_id !== user?.id) return false;
       if (filterType !== "all" && i.type !== filterType) return false;
-      if (filterCategory !== "all" && i.category !== filterCategory) return false;
+      if (filterCategory !== "all" && i.category !== filterCategory)
+        return false;
       if (search) {
         const s = search.toLowerCase();
         return (
@@ -72,21 +110,29 @@ export default function Dashboard() {
   }, [items, tab, filterType, filterCategory, search, user]);
 
   const handleClaim = async (item: Item) => {
-    const { error } = await supabase.from("items").update({ status: "pending" }).eq("id", item.id);
+    const { error } = await supabase
+      .from("items")
+      .update({ status: "pending" })
+      .eq("id", item.id);
     if (error) return toast.error(error.message);
     if (item.user_id) {
       await supabase.from("notifications").insert({
-        to_user_id: item.user_id, to_type: "student",
-        from_user_id: user?.id, from_type: "student",
-        item_id: item.id, item_name: item.name,
+        to_user_id: item.user_id,
+        to_type: "student",
+        from_user_id: user?.id,
+        from_type: "student",
+        item_id: item.id,
+        item_name: item.name,
         type: "claim",
         message: `${myName || "A student"} wants to claim your "${item.name}".`,
       });
     } else {
       await supabase.from("notifications").insert({
         to_type: "admin",
-        from_user_id: user?.id, from_type: "student",
-        item_id: item.id, item_name: item.name,
+        from_user_id: user?.id,
+        from_type: "student",
+        item_id: item.id,
+        item_name: item.name,
         type: "claim",
         message: `${myName || "A student"} wants to claim "${item.name}".`,
       });
@@ -102,20 +148,27 @@ export default function Dashboard() {
   };
 
   const handleMarkReturned = async (item: Item) => {
-    const { error } = await supabase.from("items").update({ status: "returned" }).eq("id", item.id);
+    const { error } = await supabase
+      .from("items")
+      .update({ status: "returned" })
+      .eq("id", item.id);
     if (error) return toast.error(error.message);
     toast.success("Marked as returned");
   };
 
   return (
     <div className="min-h-screen flex flex-col">
-      <AppHeader displayName={myName} avatarUrl={avatarUrl} />
+      <AppHeader isAdmin={isAdmin} displayName={myName} avatarUrl={avatarUrl} />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-8 py-8">
         <div className="flex flex-wrap items-end justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold mb-1">Lost & Found</h1>
-            <p className="text-muted-foreground text-sm">Browse items, report a new one, or claim what's yours.</p>
+            <h1 className="text-2xl sm:text-3xl font-bold mb-1">
+              Lost & Found
+            </h1>
+            <p className="text-muted-foreground text-sm">
+              Browse items, report a new one, or claim what's yours.
+            </p>
           </div>
           <ReportItemDialog onCreated={load} />
         </div>
@@ -138,7 +191,11 @@ export default function Dashboard() {
             title="Filter by category"
           >
             <option value="all">All categories</option>
-            {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            {CATEGORIES.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
           </select>
           <div className="flex gap-1 bg-input rounded-lg p-1">
             {(["all", "found", "lost"] as const).map((t) => (
@@ -146,7 +203,9 @@ export default function Dashboard() {
                 key={t}
                 onClick={() => setFilterType(t)}
                 className={`px-4 py-2 rounded-md text-xs font-semibold uppercase tracking-wide transition-all ${
-                  filterType === t ? "bg-primary text-primary-foreground shadow-blue" : "text-muted-foreground hover:text-foreground"
+                  filterType === t
+                    ? "bg-primary text-primary-foreground shadow-blue"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 {t}
@@ -159,7 +218,9 @@ export default function Dashboard() {
                 key={t}
                 onClick={() => setTab(t)}
                 className={`px-4 py-2 rounded-md text-xs font-semibold uppercase tracking-wide transition-all ${
-                  tab === t ? "bg-accent text-accent-foreground shadow-amber" : "text-muted-foreground hover:text-foreground"
+                  tab === t
+                    ? "bg-accent text-accent-foreground shadow-amber"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 {t === "all" ? "All Items" : "My Items"}
@@ -174,8 +235,12 @@ export default function Dashboard() {
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-20 bg-card rounded-xl border border-border">
-            <p className="text-muted-foreground text-lg">No items match your filters.</p>
-            <p className="text-sm text-muted-foreground/70 mt-2">Try adjusting search, or report a new item.</p>
+            <p className="text-muted-foreground text-lg">
+              No items match your filters.
+            </p>
+            <p className="text-sm text-muted-foreground/70 mt-2">
+              Try adjusting search, or report a new item.
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
@@ -184,7 +249,7 @@ export default function Dashboard() {
                 key={item.id}
                 item={item}
                 currentUserId={user?.id || null}
-                isAdmin={false}
+                isAdmin={isAdmin}
                 onClaim={handleClaim}
                 onDelete={handleDelete}
                 onMarkReturned={handleMarkReturned}

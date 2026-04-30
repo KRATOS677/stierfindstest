@@ -1,6 +1,12 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { Bell, LogOut, MessageSquare, BarChart3, User as UserIcon } from "lucide-react";
+import {
+  Bell,
+  LogOut,
+  MessageSquare,
+  BarChart3,
+  User as UserIcon,
+} from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -55,7 +61,11 @@ export const AppHeader = ({
     if (!user) return;
     const channel = supabase
       .channel("notif-feed")
-      .on("postgres_changes", { event: "*", schema: "public", table: "notifications" }, () => loadNotifs())
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "notifications" },
+        () => loadNotifs(),
+      )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
@@ -91,7 +101,7 @@ export const AppHeader = ({
 
   return (
     <header className="bg-card px-4 sm:px-8 py-4 border-b border-border flex items-center justify-between sticky top-0 z-50 backdrop-blur-md bg-card/95">
-      <Link to={isAdmin ? "/admin" : "/dashboard"} className="flex items-center gap-3">
+      <Link to="/dashboard" className="flex items-center gap-3">
         <div className="bg-sti-yellow-bright text-sti-blue font-black px-2.5 py-1 rounded text-base tracking-tighter">
           STI
         </div>
@@ -150,18 +160,24 @@ export const AppHeader = ({
               </div>
               <div className="max-h-80 overflow-y-auto">
                 {notifs.length === 0 && (
-                  <div className="p-6 text-center text-sm text-muted-foreground">No notifications yet</div>
+                  <div className="p-6 text-center text-sm text-muted-foreground">
+                    No notifications yet
+                  </div>
                 )}
                 {notifs.map((n) => (
                   <div
                     key={n.id}
                     className={`px-4 py-3 border-b border-border last:border-0 text-sm hover:bg-muted/50 transition-colors ${
-                      !n.is_read ? "bg-primary/5 border-l-4 border-l-primary" : ""
+                      !n.is_read
+                        ? "bg-primary/5 border-l-4 border-l-primary"
+                        : ""
                     }`}
                   >
                     <p className="leading-snug">{n.message}</p>
                     <p className="text-[11px] text-muted-foreground mt-1">
-                      {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
+                      {formatDistanceToNow(new Date(n.created_at), {
+                        addSuffix: true,
+                      })}
                     </p>
                   </div>
                 ))}
@@ -177,7 +193,11 @@ export const AppHeader = ({
           title="My profile"
         >
           {avatarUrl ? (
-            <img src={avatarUrl} alt="profile" className="w-9 h-9 rounded-full object-cover border border-border" />
+            <img
+              src={avatarUrl}
+              alt="profile"
+              className="w-9 h-9 rounded-full object-cover border border-border"
+            />
           ) : (
             <div
               className={`w-9 h-9 rounded-full flex items-center justify-center font-semibold text-white text-sm ${
@@ -188,7 +208,9 @@ export const AppHeader = ({
             </div>
           )}
           <div className="hidden sm:block">
-            <p className="text-sm font-semibold leading-tight">{displayName || "User"}</p>
+            <p className="text-sm font-semibold leading-tight">
+              {displayName || "User"}
+            </p>
             <p className="text-[11px] text-muted-foreground leading-tight">
               {isAdmin ? "Administrator" : "Student"}
             </p>
