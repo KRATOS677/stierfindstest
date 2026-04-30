@@ -1,208 +1,112 @@
-import {
-  MapPin,
-  Calendar,
-  User,
-  Trash2,
-  CheckCircle2,
-  Hand,
-  MessageSquare,
-  Search,
-} from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { Settings } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
-export interface Item {
-  id: string;
-  user_id: string | null;
-  uploaded_by_name: string | null;
-  type: "found" | "lost";
-  name: string;
-  category: string | null;
-  location: string | null;
-  image_path: string | null;
-  date_reported: string | null;
-  status: "unclaimed" | "pending" | "claimed" | "returned";
-  description: string | null;
-  created_at: string;
-  uploader_name?: string;
-}
-
-const statusStyles: Record<Item["status"], string> = {
-  unclaimed: "bg-success/15 text-success border-success/30",
-  pending: "bg-warning/15 text-warning border-warning/30",
-  claimed: "bg-primary/15 text-primary border-primary/30",
-  returned: "bg-muted text-muted-foreground border-border",
-};
-
-export const ItemCard = ({
-  item,
-  currentUserId,
-  isAdmin,
-  onClaim,
-  onDelete,
-  onMarkReturned,
-}: {
-  item: Item;
-  currentUserId: string | null;
-  isAdmin: boolean;
-  onClaim?: (i: Item) => void;
-  onDelete?: (i: Item) => void;
-  onMarkReturned?: (i: Item) => void;
-}) => {
+export default function AdminLogin() {
   const navigate = useNavigate();
-  const isOwner = currentUserId && item.user_id === currentUserId;
-  // Only FOUND items can be claimed. LOST items get "Message Owner" / "I Found This" instead.
-  const canClaim =
-    !isOwner &&
-    item.status === "unclaimed" &&
-    !isAdmin &&
-    item.type === "found";
-  const canHelpFind =
-    !isOwner &&
-    item.status === "unclaimed" &&
-    !isAdmin &&
-    item.type === "lost" &&
-    !!item.user_id;
-  const canDelete = isOwner || isAdmin;
-  const canMarkReturned = (isOwner || isAdmin) && item.status !== "returned";
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const imgUrl = item.image_path
-    ? supabase.storage.from("item-images").getPublicUrl(item.image_path).data
-        .publicUrl
-    : null;
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    const { data, error: signErr } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (signErr || !data.user) {
+      setLoading(false);
+      setError("Invalid email or password.");
+      return;
+    }
+    const { data: roleRows } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", data.user.id)
+      .eq("role", "admin");
+    if (!roleRows || roleRows.length === 0) {
+      await supabase.auth.signOut();
+      setLoading(false);
+      setError("This account is not an administrator.");
+      return;
+    }
+    toast.success("Welcome, admin!");
+    navigate("/admin", { replace: true });
+  };
 
   return (
-    <article className="bg-card rounded-xl overflow-hidden border border-border hover:border-primary/50 transition-all hover:-translate-y-1 hover:shadow-elevated group">
-      <div className="relative aspect-[4/3] bg-muted overflow-hidden">
-        {imgUrl ? (
-          <img
-            src={imgUrl}
-            alt={item.name}
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-            loading="lazy"
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div className="w-full max-w-md bg-card border border-border rounded-2xl p-8 shadow-lg">
+        <div className="flex flex-col items-center mb-6">
+          <div className="w-12 h-12 rounded-full bg-accent/15 flex items-center justify-center mb-3">
+            <Settings className="w-6 h-6 text-accent" />
+          </div>
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            Admin Login
+            <span className="text-xs px-2 py-0.5 rounded-full bg-accent/15 text-accent font-semibold">
+              Admin
+            </span>
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Restricted access — administrators only
+          </p>
+        </div>
+
+        {error && (
+          <div className="mb-4 p-3 rounded-lg bg-destructive/15 text-destructive text-sm border border-destructive/30">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit}>
+          <label className="block text-sm font-medium text-foreground mb-1.5">
+            Email
+          </label>
+          <input
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="admin@stierfinds.com"
+            className="w-full px-3.5 py-[11px] rounded-lg border border-border bg-input text-foreground text-sm mb-[18px] outline-none focus:border-accent focus:ring-[3px] focus:ring-accent/15 transition-all placeholder:text-muted-foreground/60"
           />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-muted-foreground/40 text-6xl">
-            ?
-          </div>
-        )}
-        <div className="absolute top-2 left-2 flex gap-1.5">
-          <span
-            className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full ${
-              item.type === "found"
-                ? "bg-success text-white"
-                : "bg-destructive text-white"
-            }`}
+
+          <label className="block text-sm font-medium text-foreground mb-1.5">
+            Password
+          </label>
+          <input
+            type="password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="••••••••"
+            className="w-full px-3.5 py-[11px] rounded-lg border border-border bg-input text-foreground text-sm mb-[18px] outline-none focus:border-accent focus:ring-[3px] focus:ring-accent/15 transition-all placeholder:text-muted-foreground/60"
+          />
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-2.5 rounded-lg bg-accent text-accent-foreground font-semibold text-sm hover:bg-accent/90 transition-all disabled:opacity-60"
           >
-            {item.type}
-          </span>
-          <span
-            className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full border ${statusStyles[item.status]}`}
+            {loading ? "Signing in..." : "Sign In as Admin"}
+          </button>
+        </form>
+
+        <p className="text-center text-sm text-muted-foreground mt-5">
+          Not an admin?{" "}
+          <Link
+            to="/login"
+            className="text-accent font-semibold hover:underline"
           >
-            {item.status}
-          </span>
-        </div>
+            Back to Student Login
+          </Link>
+        </p>
       </div>
-
-      <div className="p-4">
-        <h3 className="font-bold text-foreground text-base mb-1 line-clamp-1">
-          {item.name}
-        </h3>
-        {item.category && (
-          <p className="text-xs text-primary font-semibold uppercase tracking-wider mb-2">
-            {item.category}
-          </p>
-        )}
-        {item.description && (
-          <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
-            {item.description}
-          </p>
-        )}
-
-        <div className="space-y-1.5 text-xs text-muted-foreground border-t border-border pt-3">
-          {item.location && (
-            <div className="flex items-center gap-1.5">
-              <MapPin className="w-3.5 h-3.5 shrink-0" /> {item.location}
-            </div>
-          )}
-          {item.date_reported && (
-            <div className="flex items-center gap-1.5">
-              <Calendar className="w-3.5 h-3.5 shrink-0" /> {item.date_reported}
-            </div>
-          )}
-          <div className="flex items-center gap-1.5">
-            <User className="w-3.5 h-3.5 shrink-0" />
-            {item.user_id && currentUserId !== item.user_id ? (
-              <>
-                <Link
-                  to={`/u/${item.user_id}`}
-                  className="text-primary hover:underline font-medium"
-                  title="View profile"
-                >
-                  {item.uploader_name || item.uploaded_by_name || "Student"}
-                </Link>
-                <Link
-                  to={`/messages?to=${item.user_id}`}
-                  className="ml-auto text-primary hover:text-primary/80 inline-flex items-center gap-1"
-                  title="Message uploader"
-                >
-                  <MessageSquare className="w-3.5 h-3.5" />
-                </Link>
-              </>
-            ) : (
-              <span>
-                {item.uploader_name || item.uploaded_by_name || "Admin"}
-                {item.user_id && currentUserId === item.user_id ? " (You)" : ""}
-              </span>
-            )}
-          </div>
-        </div>
-
-        {(canClaim || canHelpFind || canDelete || canMarkReturned) && (
-          <div className="mt-3 pt-3 border-t border-border flex flex-wrap gap-2">
-            {canClaim && onClaim && (
-              <button
-                onClick={() => onClaim(item)}
-                className="flex-1 min-w-fit gradient-blue text-white text-xs font-semibold py-2 px-3 rounded-lg shadow-blue hover:opacity-90 transition flex items-center justify-center gap-1.5"
-              >
-                <Hand className="w-3.5 h-3.5" /> Claim
-              </button>
-            )}
-            {canHelpFind && (
-              <>
-                <button
-                  onClick={() => navigate(`/messages?to=${item.user_id}`)}
-                  className="flex-1 min-w-fit gradient-blue text-white text-xs font-semibold py-2 px-3 rounded-lg shadow-blue hover:opacity-90 transition flex items-center justify-center gap-1.5"
-                >
-                  <Search className="w-3.5 h-3.5" /> I Found This
-                </button>
-                <button
-                  onClick={() => navigate(`/messages?to=${item.user_id}`)}
-                  className="flex-1 min-w-fit bg-primary/15 text-primary text-xs font-semibold py-2 px-3 rounded-lg border border-primary/30 hover:bg-primary/25 transition flex items-center justify-center gap-1.5"
-                >
-                  <MessageSquare className="w-3.5 h-3.5" /> Message Owner
-                </button>
-              </>
-            )}
-            {canMarkReturned && onMarkReturned && (
-              <button
-                onClick={() => onMarkReturned(item)}
-                className="flex-1 min-w-fit bg-success/20 text-success text-xs font-semibold py-2 px-3 rounded-lg border border-success/30 hover:bg-success/30 transition flex items-center justify-center gap-1.5"
-              >
-                <CheckCircle2 className="w-3.5 h-3.5" /> Mark Returned
-              </button>
-            )}
-            {canDelete && onDelete && (
-              <button
-                onClick={() => onDelete(item)}
-                className="bg-destructive/15 text-destructive text-xs font-semibold py-2 px-3 rounded-lg border border-destructive/30 hover:bg-destructive/25 transition flex items-center justify-center gap-1.5"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-    </article>
+    </div>
   );
-};
+}
