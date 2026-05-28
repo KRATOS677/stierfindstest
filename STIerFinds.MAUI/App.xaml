@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Application
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="STIerFinds.MAUI.App">
+    <Application.Resources>
+        <ResourceDictionary>
+            <Color x:Key="PageBackgroundColor">#FFFFFF</Color>
+            <Color x:Key="PrimaryColor">#512BD4</Color>
+            <Color x:Key="SecondaryColor">#DFD8F7</Color>
+            
+            <Style TargetType="Label">
+                <Setter Property="TextColor" Value="#000000" />
+                <Setter Property="FontFamily" Value="OpenSansRegular" />
+            </Style>
+
+            <Style TargetType="Button">
+                <Setter Property="FontSize" Value="18" />
+                <Setter Property="FontAttributes" Value="Bold" />
+                <Setter Property="CornerRadius" Value="8" />
+                <Setter Property="Padding" Value="12,8" />
+            </Style>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>
