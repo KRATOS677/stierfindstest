@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Shell
+    x:Class="STIerFinds.MAUI.AppShell"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    FlyoutBehavior="Disabled"
+    BackgroundColor="#FFFFFF">
+
+    <ShellContent
+        Title="Welcome"
+        ContentTemplate="{DataTemplate local:WelcomePage}"
+        Route="welcome"
+        xmlns:local="clr-namespace:STIerFinds.MAUI.Views" />
+
+    <ShellContent
+        Title="Login"
+        ContentTemplate="{DataTemplate local:LoginPage}"
+        Route="login"
+        xmlns:local="clr-namespace:STIerFinds.MAUI.Views" />
+
+    <ShellContent
+        Title="Signup"
+        ContentTemplate="{DataTemplate local:SignupPage}"
+        Route="signup"
+        xmlns:local="clr-namespace:STIerFinds.MAUI.Views" />
+
+    <ShellContent
+        Title="Admin Login"
+        ContentTemplate="{DataTemplate local:AdminLoginPage}"
+        Route="admin/login"
+        xmlns:local="clr-namespace:STIerFinds.MAUI.Views" />
+
+    <ShellContent
+        Title="Dashboard"
+        ContentTemplate="{DataTemplate local:DashboardPage}"
+        Route="dashboard"
+        xmlns:local="clr-namespace:STIerFinds.MAUI.Views" />
+
+    <ShellContent
+        Title="Admin Dashboard"
+        ContentTemplate="{DataTemplate local:AdminDashboardPage}"
+        Route="admin"
+        xmlns:local="clr-namespace:STIerFinds.MAUI.Views" />
+
+    <ShellContent
+        Title="Messages"
+        ContentTemplate="{DataTemplate local:MessagesPage}"
+        Route="messages"
+        xmlns:local="clr-namespace:STIerFinds.MAUI.Views" />
+
+</Shell>
